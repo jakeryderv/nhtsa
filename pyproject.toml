@@ -1,0 +1,30 @@
+[project]
+name = "nhtsa"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12,<3.15"
+authors = [{ name = "Jake Van Slyke", email = "jakervanslyke@gmail.com" }]
+dependencies = [
+    "polars>=2.0.0",
+]
+
+[project.scripts]
+nhtsa = "nhtsa:main"
+
+[build-system]
+requires = ["uv_build>=0.12.18,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "altair>=6.3.0",
+    "marimo>=0.25.2",
+    "pytest>=9.1.1",
+    "ruff>=0.17.1",
+    "ty>=0.0.89",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# marimo's file format ends every cell with a bare `return`.
+"notebooks/*.py" = ["PLR1711"]
