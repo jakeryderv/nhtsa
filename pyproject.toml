@@ -19,13 +19,19 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "altair>=6.3.0",
-    "marimo>=0.25.2",
+    "ipywidgets>=8.1.9",
+    "jupyterlab>=4.6.6",
     "pytest>=9.1.1",
     "ruff>=0.17.1",
     "scikit-learn>=1.9.1",
+    "sentence-transformers>=6.3.0",
     "ty>=0.0.89",
+    "umap-learn>=0.6.0",
 ]
 
-[tool.ruff.lint.per-file-ignores]
-# marimo cells end with a bare `return` and show a trailing bare expression.
-"notebooks/*.py" = ["PLR1711", "B018"]
+[[tool.ty.overrides]]
+# ty can't see the type altair's mark_*() methods return, so every chart is flagged.
+include = ["notebooks/**"]
+
+[tool.ty.overrides.rules]
+unresolved-attribute = "ignore"
