@@ -1,0 +1,188 @@
+# Describes data/processed/nhtsa.duckdb for tools that query it.
+# `nhtsa build-db` fails if this file and the database disagree.
+
+name: nhtsa_complaints
+title: NHTSA vehicle safety complaints
+description: >
+  Safety complaints that consumers filed with the US National Highway Traffic
+  Safety Administration (NHTSA) about vehicles, tires, child seats, and
+  equipment, received since 1995.
+dialect: duckdb
+data_version_sql: SELECT data_version FROM dataset_info
+
+caveats:
+  - >
+    Complaint counts are not defect rates. There is no count of vehicles on the
+    road, so a make or model with more complaints is not necessarily less safe;
+    popular vehicles get more complaints. Say so when comparing makes or models.
+  - >
+    Complaints are unverified consumer reports. Crash, fire, injury, and death
+    figures are what the consumer reported.
+  - >
+    The most recent received_year is incomplete: the data ends at the date given
+    by data_version_sql. Do not read a drop in the latest year as a decline.
+  - >
+    NHTSA changed its system in May 2021. For complaints received before then,
+    false in crash, fire, medical_attention, or police_report, and 0 in injuries
+    or deaths, can mean "not recorded" as well as "no".
+  - >
+    A complaint can list several vehicles and several components. Joining
+    complaint_vehicles or complaint_components repeats the complaint, so count
+    complaints with count(DISTINCT complaint_id).
+
+tables:
+  - name: complaints
+    description: One row per complaint.
+    columns:
+      - name: complaint_id
+        type: BIGINT
+        description: NHTSA's reference number for the complaint (ODI number). Unique.
+      - name: received_date
+        type: DATE
+        description: Date NHTSA received the complaint. Use this for trends over time.
+      - name: received_year
+        type: INTEGER
+        description: Year of received_date.
+      - name: incident_date
+        type: DATE
+        description: >
+          Date of the incident, as reported. Missing for about 6% of complaints
+          before 2022, and a few are implausible (far past or future).
+      - name: source
+        type: VARCHAR
+        description: How the complaint reached NHTSA.
+        values: [website, hotline, questionnaire, letter, mobile_app, other]
+      - name: product_type
+        type: VARCHAR
+        description: What the complaint is about. 98% are vehicles.
+        values: [vehicle, tires, child_restraint, equipment]
+      - name: crash
+        type: BOOLEAN
+        description: The consumer reported a crash.
+      - name: fire
+        type: BOOLEAN
+        description: The consumer reported a fire.
+      - name: injuries
+        type: INTEGER
+        description: Number of people reported injured.
+      - name: deaths
+        type: INTEGER
+        description: Number of people reported killed.
+      - name: medical_attention
+        type: BOOLEAN
+        description: Medical attention was required. Almost never recorded before April 2014.
+      - name: police_report
+        type: BOOLEAN
+        description: The incident was reported to the police.
+      - name: mileage
+        type: INTEGER
+        description: >
+          Vehicle mileage at failure, as reported. Missing for about half of
+          complaints, and some values are implausibly large.
+      - name: consumer_state
+        type: VARCHAR
+        description: >
+          Two-letter code of the consumer's state, e.g. CA. Includes territories,
+          military codes, and a few invalid codes.
+      - name: description
+        type: VARCHAR
+        description: >
+          The complaint in the consumer's words, at most 2,048 characters. All
+          capitals for complaints received before mid-2021; search it with ILIKE.
+
+  - name: complaint_vehicles
+    description: >
+      One row per complaint and product. Usually one vehicle; for tires, child
+      restraints, and equipment the make and model are the product's.
+    columns:
+      - name: complaint_id
+        type: BIGINT
+        description: The complaint; joins to complaints.complaint_id.
+      - name: manufacturer
+        type: VARCHAR
+        description: Manufacturer's name in capitals, e.g. "FORD MOTOR COMPANY".
+      - name: make
+        type: VARCHAR
+        description: >
+          Make in capitals, e.g. FORD, TOYOTA, MERCEDES-BENZ. Spellings that
+          differ only in punctuation are merged.
+      - name: model
+        type: VARCHAR
+        description: >
+          Model in capitals, e.g. F-150, CAMRY. Variants are separate models
+          (F-150 and F-150 HYBRID), so match a family with LIKE 'F-150%'.
+      - name: model_year
+        type: INTEGER
+        description: Model year. Missing when unknown or not applicable.
+
+  - name: complaint_components
+    description: >
+      One row per complaint and component named in it. A complaint can have
+      several rows with the same component but different component_detail.
+    columns:
+      - name: complaint_id
+        type: BIGINT
+        description: The complaint; joins to complaints.complaint_id.
+      - name: component
+        type: VARCHAR
+        description: Component category. Use this to filter or group by component.
+        values:
+          - air_bags
+          - brakes
+          - child_seat
+          - communication
+          - driver_assistance
+          - electrical
+          - engine
+          - equipment
+          - fire
+          - fuel_propulsion
+          - latches_locks
+          - lighting
+          - powertrain
+          - seat_belts
+          - seats
+          - speed_control
+          - stability_control
+          - steering
+          - structure
+          - suspension
+          - tires
+          - trailer
+          - unknown
+          - visibility
+          - wheels
+      - name: component_detail
+        type: VARCHAR
+        description: >
+          NHTSA's full component description, e.g. "SERVICE BRAKES,
+          HYDRAULIC:FOUNDATION COMPONENTS". Detail is sparse after 2010.
+
+examples:
+  - question: How many complaints were received each year?
+    sql: |
+      SELECT received_year, count(*) AS complaints
+      FROM complaints
+      GROUP BY received_year
+      ORDER BY received_year
+  - question: Which makes have the most brake complaints since 2020?
+    sql: |
+      SELECT v.make, count(DISTINCT c.complaint_id) AS complaints
+      FROM complaints c
+      JOIN complaint_vehicles v USING (complaint_id)
+      JOIN complaint_components k USING (complaint_id)
+      WHERE k.component = 'brakes' AND c.received_year >= 2020
+      GROUP BY v.make
+      ORDER BY complaints DESC
+      LIMIT 10
+  - question: What share of Tesla complaints reported a crash, by year?
+    sql: |
+      SELECT c.received_year,
+             count(DISTINCT c.complaint_id) AS complaints,
+             count(DISTINCT c.complaint_id) FILTER (WHERE c.crash) AS crashes,
+             round(crashes / complaints, 3) AS crash_share
+      FROM complaints c
+      JOIN complaint_vehicles v USING (complaint_id)
+      WHERE v.make = 'TESLA'
+      GROUP BY c.received_year
+      ORDER BY c.received_year

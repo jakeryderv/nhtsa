@@ -8,6 +8,7 @@ sentence-embedding clusters, scored against NHTSA's component labels.
 ```sh
 uv sync
 uv run nhtsa download   # complaint flat file into data/raw/
+uv run nhtsa build-db   # curated DuckDB database into data/processed/
 ```
 
 ## Notebooks
@@ -32,7 +33,8 @@ once (a few minutes on a GPU) and caches the result in
 ## Code
 
 `src/nhtsa/`: `download` and `load` (raw data), `text` and `labels` (cleaning,
-component labels), `dataset` (modeling tables), `topics` (TF-IDF clusterings and
+component labels), `dataset` (modeling tables), `database` (curated DuckDB database for query
+tools, described by `sources/complaints.yaml`), `topics` (TF-IDF clusterings and
 cluster words), `embed` (cached embeddings), `evaluate` (scores), `notebook`
 (display helpers).
 

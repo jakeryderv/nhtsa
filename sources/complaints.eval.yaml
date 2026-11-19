@@ -1,0 +1,100 @@
+# Questions with known answers, for `talkviz eval`. Each sql is a correct
+# answer; a model passes when its query returns the same data (column names,
+# column order, row order, and extra columns are ignored).
+
+- question: How many complaints are there in total?
+  sql: SELECT count(*) FROM complaints
+
+- question: How many complaints were received in 2023?
+  sql: SELECT count(*) FROM complaints WHERE received_year = 2023
+
+- question: How many complaints were received each year?
+  sql: SELECT received_year, count(*) FROM complaints GROUP BY 1
+
+- question: How many complaints reported a fire?
+  sql: SELECT count(*) FROM complaints WHERE fire
+
+- question: How many complaints reported at least one death?
+  sql: SELECT count(*) FROM complaints WHERE deaths > 0
+
+- question: What is the total number of deaths reported across all complaints?
+  sql: SELECT sum(deaths) FROM complaints
+
+- question: How many complaints came in through each source?
+  sql: SELECT source, count(*) FROM complaints GROUP BY 1
+
+- question: How many complaints are there for each product type?
+  sql: SELECT product_type, count(*) FROM complaints GROUP BY 1
+
+- question: How many complaints reported a crash in each year since 2015?
+  sql: SELECT received_year, count(*) FROM complaints WHERE crash AND received_year >= 2015 GROUP BY 1
+
+# Only the counts are compared, so months may be numbers, names, or dates.
+- question: How many complaints were received in each month of 2024?
+  sql: SELECT count(*) FROM complaints WHERE received_year = 2024 GROUP BY month(received_date)
+
+- question: Which 10 states do the most complaints come from, and how many each?
+  sql: SELECT consumer_state, count(*) FROM complaints WHERE consumer_state IS NOT NULL GROUP BY 1 ORDER BY 2 DESC LIMIT 10
+
+- question: How many complaints involve a Toyota?
+  sql: SELECT count(DISTINCT complaint_id) FROM complaint_vehicles WHERE make = 'TOYOTA'
+
+- question: Which 10 makes have the most complaints, and how many each?
+  sql: SELECT make, count(DISTINCT complaint_id) FROM complaint_vehicles GROUP BY 1 ORDER BY 2 DESC LIMIT 10
+
+- question: What are the 5 Honda models with the most complaints, and how many each?
+  sql: SELECT model, count(DISTINCT complaint_id) FROM complaint_vehicles WHERE make = 'HONDA' GROUP BY 1 ORDER BY 2 DESC LIMIT 5
+
+- question: How many complaints are there about the Ford F-150, counting only the model named exactly F-150?
+  sql: SELECT count(DISTINCT complaint_id) FROM complaint_vehicles WHERE make = 'FORD' AND model = 'F-150'
+
+- question: How many complaints are there for each model year of the Jeep model named exactly GRAND CHEROKEE, for model years 2011 through 2020?
+  sql: SELECT model_year, count(DISTINCT complaint_id) FROM complaint_vehicles WHERE make = 'JEEP' AND model = 'GRAND CHEROKEE' AND model_year BETWEEN 2011 AND 2020 GROUP BY 1
+
+- question: How many complaints did Tesla get each year?
+  sql: SELECT c.received_year, count(DISTINCT c.complaint_id) FROM complaints c JOIN complaint_vehicles v USING (complaint_id) WHERE v.make = 'TESLA' GROUP BY 1
+
+- question: How many complaints are there for each component?
+  sql: SELECT component, count(DISTINCT complaint_id) FROM complaint_components GROUP BY 1
+
+- question: How many complaints name the air bags component?
+  sql: SELECT count(DISTINCT complaint_id) FROM complaint_components WHERE component = 'air_bags'
+
+- question: How many brake complaints were received each year?
+  sql: SELECT c.received_year, count(DISTINCT c.complaint_id) FROM complaints c JOIN complaint_components k USING (complaint_id) WHERE k.component = 'brakes' GROUP BY 1
+
+- question: Which 5 components have the most complaints that reported a fire, and how many each?
+  sql: SELECT k.component, count(DISTINCT c.complaint_id) FROM complaints c JOIN complaint_components k USING (complaint_id) WHERE c.fire GROUP BY 1 ORDER BY 2 DESC LIMIT 5
+
+- question: Which 10 makes have the most steering complaints received since 2020, and how many each?
+  sql: SELECT v.make, count(DISTINCT c.complaint_id) FROM complaints c JOIN complaint_vehicles v USING (complaint_id) JOIN complaint_components k USING (complaint_id) WHERE k.component = 'steering' AND c.received_year >= 2020 GROUP BY 1 ORDER BY 2 DESC LIMIT 10
+
+- question: How many engine complaints are there for Hyundai and for Kia?
+  sql: SELECT v.make, count(DISTINCT v.complaint_id) FROM complaint_vehicles v JOIN complaint_components k USING (complaint_id) WHERE k.component = 'engine' AND v.make IN ('HYUNDAI', 'KIA') GROUP BY 1
+
+- question: What are the top 5 components in Tesla complaints, and how many complaints each?
+  sql: SELECT k.component, count(DISTINCT v.complaint_id) FROM complaint_vehicles v JOIN complaint_components k USING (complaint_id) WHERE v.make = 'TESLA' GROUP BY 1 ORDER BY 2 DESC LIMIT 5
+
+- question: How many Chevrolet complaints reported a crash?
+  sql: SELECT count(DISTINCT c.complaint_id) FROM complaints c JOIN complaint_vehicles v USING (complaint_id) WHERE v.make = 'CHEVROLET' AND c.crash
+
+- question: How many complaints name more than one component category?
+  sql: SELECT count(*) FROM (SELECT complaint_id FROM complaint_components GROUP BY 1 HAVING count(DISTINCT component) > 1)
+
+- question: How many complaints mention the word "recall" in their description?
+  sql: SELECT count(*) FROM complaints WHERE description ILIKE '%recall%'
+
+- question: How many complaints received in 2022 or later came through the hotline?
+  sql: SELECT count(*) FROM complaints WHERE source = 'hotline' AND received_year >= 2022
+
+- question: How many complaints whose product type is tires were received each year from 2000 through 2005?
+  sql: SELECT received_year, count(*) FROM complaints WHERE product_type = 'tires' AND received_year BETWEEN 2000 AND 2005 GROUP BY 1
+
+- question: How many complaints about model year 2018 vehicles are there for each of Ford, Toyota, and Honda?
+  sql: SELECT make, count(DISTINCT complaint_id) FROM complaint_vehicles WHERE model_year = 2018 AND make IN ('FORD', 'TOYOTA', 'HONDA') GROUP BY 1
+
+- question: What is the median reported mileage for transmission-related complaints, using the powertrain component?
+  sql: SELECT median(c.mileage) FROM complaints c WHERE c.complaint_id IN (SELECT complaint_id FROM complaint_components WHERE component = 'powertrain')
+
+- question: How many people in total were reported injured in complaints received in 2019?
+  sql: SELECT sum(injuries) FROM complaints WHERE received_year = 2019
