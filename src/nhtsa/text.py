@@ -20,6 +20,8 @@ _VEHICLE_SENTENCE = (
 # Analyst initials ("*TR", "*SLC"). Uppercase only, so ordinary words survive;
 # run after the hotline marker is gone, since "TL*THE" would otherwise match.
 _ANALYST_INITIALS = r"\*[A-Z]{2,3}\b"
+# Initials without the asterisk, after the last sentence: "...TO 4TH GEAR.  TT"
+_TRAILING_INITIALS = r"\.\s+[A-Z]{2,3}\s*$"
 # Analyst update notes: "UPDATED 05/08/12", "UPDATED  03-19-08"
 _UPDATE_NOTE = r"(?i)\bupdated?\s*\d{1,2}[/-]\d{1,2}[/-]\d{2,4}"
 # The citation is optional because the 2,048-character cap sometimes cuts it off.
@@ -35,6 +37,19 @@ _MIGRATION_NOTE = r"(?i)\*+\s*dims\s*i*\b.{0,80}?artemis\*+\s*\d*"
 _REDACTION = r"(?i)[\[(]?\bx{3,}\b[\])]?"
 # NHTSA recall campaign IDs: "25V695000", "16V384", "13E-048"
 _CAMPAIGN_ID = r"(?i)\b\d{2}[vetc]-?\d{3}(?:\d{3})?\b"
+# Hotline status sentences about the case rather than the problem, matched on
+# lowercased text and only as whole sentences: "the failure mileage was 50,000."
+_STATUS_SENTENCES = (
+    r"\b(?:the (?:approximate )?failure mileage was[^.]{0,60}"
+    r"|the current (?:and failure )?mileages? (?:was|were)[^.]{0,60}"
+    r"|the manufacturer (?:was|has|had)(?: not)?(?: been)?"
+    r" (?:notified|made aware|contacted|informed)[^.]{0,40}"
+    r"|the vehicle was (?:not )?(?:diagnosed or )?repaired"
+    r"|the vin was (?:not available|unavailable)"
+    r"|vin tool confirms parts (?:not )?available"
+    r"|parts distribution disconnect"
+    r"|the contact had not experienced a failure)\s*\."
+)
 # "however, the part to do the recall repair was not yet available"
 _PARTS_UNAVAILABLE = (
     r"(?i)\b(?:however|but),? the parts? (?:\w+ ){0,8}"
@@ -51,6 +66,7 @@ def strip_boilerplate(text: pl.Expr) -> pl.Expr:
         .str.replace(_NO_SUMMARY, "")
         .str.replace_all(_MIGRATION_NOTE, " ")
         .str.replace_all(_ANALYST_INITIALS, " ")
+        .str.replace(_TRAILING_INITIALS, ".")
         .str.replace_all(_UPDATE_NOTE, " ")
         .str.replace_all(_FOIA_NOTE, " ")
     )
@@ -63,10 +79,24 @@ def mask_identifiers(text: pl.Expr) -> pl.Expr:
     )
 
 
+def strip_status_sentences(text: pl.Expr) -> pl.Expr:
+    """Remove hotline status sentences (mileage, manufacturer notified, repaired).
+
+    Expects lowercased text with collapsed whitespace, as clean_text produces.
+    """
+    return text.str.replace_all(_STATUS_SENTENCES, " ")
+
+
 def clean_text(text: pl.Expr) -> pl.Expr:
-    """strip_boilerplate, mask_identifiers, lowercase, and collapse whitespace."""
+    """strip_boilerplate, mask_identifiers, lowercase, strip_status_sentences,
+    and collapse whitespace."""
     masked = mask_identifiers(strip_boilerplate(text))
-    return masked.str.to_lowercase().str.replace_all(r"\s+", " ").str.strip_chars()
+    lowered = _collapse_whitespace(masked.str.to_lowercase())
+    return _collapse_whitespace(strip_status_sentences(lowered))
+
+
+def _collapse_whitespace(text: pl.Expr) -> pl.Expr:
+    return text.str.replace_all(r"\s+", " ").str.strip_chars()
 
 
 def is_hotline_template(text: pl.Expr) -> pl.Expr:

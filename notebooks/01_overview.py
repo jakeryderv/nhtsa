@@ -6,13 +6,15 @@ app = marimo.App(width="medium")
 
 @app.cell
 def _():
+    import html
+
     import altair as alt
     import marimo as mo
     import polars as pl
 
     from nhtsa.load import load_complaints, load_rows
 
-    return alt, load_complaints, load_rows, mo, pl
+    return alt, html, load_complaints, load_rows, mo, pl
 
 
 @app.cell(hide_code=True)
@@ -353,7 +355,10 @@ def _(components, mo):
 
 
 @app.cell
-def _(complaints, components, group_picker, mo, pl, resample):
+def _(complaints, components, group_picker, html, mo, pl, resample):
+    def _wrapped(text):
+        return mo.Html(f'<div style="white-space: pre-wrap">{html.escape(text)}</div>')
+
     _ids = components.filter(pl.col("GROUP") == group_picker.value)["ODINO"].unique()
     _sample = complaints.filter(pl.col("ODINO").is_in(_ids.implode())).sample(
         5, seed=resample.value
@@ -366,7 +371,7 @@ def _(complaints, components, group_picker, mo, pl, resample):
                         f"**{_r['ODINO']}** · received {_r['LDATE']} · "
                         f"{', '.join(_r['COMPONENTS'])}"
                     ),
-                    mo.plain_text(_r["CDESCR"]),
+                    _wrapped(_r["CDESCR"]),
                 ]
             )
             for _r in _sample.iter_rows(named=True)

@@ -62,6 +62,23 @@ def apply(expr_fn, text: str):
         ),
         ("NO SUMMARY LISTED FOR ABOV EVEHICLE.  *AK", ""),
         (
+            "WHILE SHIFTING FROM 5TH GEAR TO 4TH GEAR, IT JAMMED.  TT",
+            "while shifting from 5th gear to 4th gear, it jammed.",
+        ),
+        (
+            (
+                "The transmission failed. The vehicle was not repaired. The manufacturer "
+                "was not made aware of the failure. The failure mileage was 50,000 and "
+                "the current mileage was 61,200. VIN tool confirms parts not available."
+            ),
+            "the transmission failed.",
+        ),
+        (
+            # Only whole status sentences go; sentences with more content stay.
+            "The vehicle was repaired by replacing the pump. The manufacturer was notified.",
+            "the vehicle was repaired by replacing the pump.",
+        ),
+        (
             "NO OTHER INFORMATION WAS AVAILABLE.    UPDATED  03-19-08 *BF  UPDATED 03/19/08  *TR",
             "no other information was available.",
         ),

@@ -15,22 +15,17 @@ def _():
     from sklearn.linear_model import LogisticRegression
     from sklearn.model_selection import train_test_split
 
-    from nhtsa.labels import COMPONENT_LABELS, component_label, component_labels
-    from nhtsa.load import load_complaints
-    from nhtsa.text import clean_text, is_hotline_template, is_recall_parts_unavailable
+    from nhtsa.dataset import cleaned_complaints
+    from nhtsa.labels import COMPONENT_LABELS, component_label
 
     return (
         COMPONENT_LABELS,
         LogisticRegression,
         TfidfVectorizer,
         alt,
-        clean_text,
+        cleaned_complaints,
         component_label,
-        component_labels,
         html,
-        is_hotline_template,
-        is_recall_parts_unavailable,
-        load_complaints,
         mo,
         pl,
         train_test_split,
@@ -43,35 +38,21 @@ def _(mo):
     # Text cleaning and component labels
 
     Checks `nhtsa.text.clean_text` and `nhtsa.labels.component_labels` on the full
-    data. Cleaning adds a `TEXT` column; the original `CDESCR` is untouched.
+    data, via `nhtsa.dataset.cleaned_complaints()`. Cleaning adds a `TEXT` column;
+    the original `CDESCR` is untouched.
     """)
     return
 
 
 @app.cell
-def _(
-    clean_text,
-    component_labels,
-    is_hotline_template,
-    is_recall_parts_unavailable,
-    load_complaints,
-    pl,
-):
-    _raw = pl.col("CDESCR")
-    complaints = load_complaints().select(
-        "ODINO",
-        "CDESCR",
-        "COMPONENTS",
-        YEAR=pl.col("LDATE").dt.year(),
-        TEXT=clean_text(_raw),
-        HOTLINE=is_hotline_template(_raw),
-        PARTS_UNAVAILABLE=is_recall_parts_unavailable(_raw),
-        LABELS=component_labels(pl.col("COMPONENTS")),
-    )
-    # Changed beyond what lowercasing and whitespace cleanup alone would do.
-    complaints = complaints.with_columns(
+def _(cleaned_complaints, pl):
+    # CHANGED: changed beyond what lowercasing and whitespace cleanup alone would do.
+    complaints = cleaned_complaints().with_columns(
         CHANGED=pl.col("TEXT")
-        != _raw.str.to_lowercase().str.replace_all(r"\s+", " ").str.strip_chars()
+        != pl.col("CDESCR")
+        .str.to_lowercase()
+        .str.replace_all(r"\s+", " ")
+        .str.strip_chars()
     )
     return (complaints,)
 

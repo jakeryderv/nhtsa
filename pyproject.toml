@@ -27,5 +27,5 @@ dev = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-# marimo's file format ends every cell with a bare `return`.
-"notebooks/*.py" = ["PLR1711"]
+# marimo cells end with a bare `return` and show a trailing bare expression.
+"notebooks/*.py" = ["PLR1711", "B018"]
